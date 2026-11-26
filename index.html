@@ -12,7 +12,8 @@
     --rose: #de5161;
     --paper: #fffaf6;
     --line: #ead9d1;
-    --card-w: 70mm;
+    --art-w: 70mm;
+    --card-w: 101mm;
     --card-h: 46.66mm;
   }
   * { box-sizing: border-box; }
@@ -96,49 +97,76 @@
     overflow: hidden;
   }
   .card {
-    position: relative;
-    overflow: hidden;
+    display: flex;
     width: var(--card-w); height: var(--card-h);
     outline: 0.25mm dashed #b9aaa4;
     outline-offset: -0.125mm;
     background: #fef9f5;
   }
+  /* left: the original illustration, untouched apart from the erased old text */
+  .art { position: relative; overflow: hidden; width: var(--art-w); height: 100%; flex: none; }
   .stage {
     position: absolute; left: 0; top: 0;
     width: 1055px; height: 1491px;
     transform-origin: 0 0;
   }
   .stage img { position: absolute; left: 0; top: 0; width: 1055px; height: 1491px; display: block; user-select: none; }
-  .patch {
-    position: absolute;
-    background: #fef9f5;
-    border-radius: 14px;
-    box-shadow: 0 0 6px 5px #fef9f5;
-    display: flex; align-items: center; justify-content: center;
-    text-align: center;
-    white-space: pre-wrap;
+  .zh {
     font-family: "Bpmf Huninn", "Microsoft JhengHei", sans-serif;
     color: #2b201d;
+    white-space: pre-wrap;
+    text-align: center;
     line-height: 1.22;
     letter-spacing: 1px;
+  }
+  .bubble {
+    position: absolute;
+    display: flex; align-items: center; justify-content: center;
     overflow: hidden;
   }
-  .patch .fit { display: block; }
-  .patch.bubble { border-radius: 50%; box-shadow: 0 0 4px 3px var(--bg); background: var(--bg); }
-  .patch.heart { color: #c2384f; }
+  .bubble .fit { display: block; }
+  .bubble.heart { color: #c2384f; }
+  /* right: the task text column */
+  .side {
+    flex: 1; min-width: 0;
+    margin: 1.2mm 1.2mm 1.2mm 0.3mm;
+    border: 0.3mm dashed #ecbcc2;
+    border-radius: 2.6mm;
+    background: #fffdfb;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 1.4mm 0.8mm 1mm;
+    gap: 1mm;
+  }
   .tag {
-    position: absolute;
     background: #de5161;
     color: #fff;
     border-radius: 999px;
-    box-shadow: 0 0 0 3px #fef9f5;
-    display: flex; align-items: center; justify-content: center;
     font-family: "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", sans-serif;
-    font-weight: 700; font-size: 21px; letter-spacing: 1px;
+    font-weight: 700; font-size: 2.9mm; letter-spacing: 0.2mm;
+    padding: 0.5mm 2.2mm;
     white-space: nowrap;
   }
-  .tag.plain { background: #fef9f5; box-shadow: 0 0 6px 4px #fef9f5; }
-  .tag.plain span { display: none; }
+  .tag[hidden] { display: none; }
+  .task-text {
+    flex: 1; min-height: 0; width: 100%;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+  }
+  /* "inside" mode: narrower card, text written straight onto the erased empty area */
+  body.inside { --card-w: var(--art-w); }
+  body.inside .side { display: none; }
+  .in-text, .in-tag { position: absolute; display: none; }
+  body.inside .in-text { display: flex; align-items: center; justify-content: center; }
+  body.inside .in-tag { display: flex; }
+  .in-text .fit { display: block; white-space: pre; }
+  .in-tag {
+    align-items: center; justify-content: center;
+    background: #de5161; color: #fff; border-radius: 999px;
+    font-family: "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", sans-serif;
+    font-weight: 700; font-size: 21px; letter-spacing: 1px; white-space: nowrap;
+  }
+  body.inside .in-tag[hidden] { display: none; }
+  .task-text .fit { display: block; white-space: pre; letter-spacing: 0; }
 
   @media print {
     @page { size: A4 portrait; margin: 0; }
@@ -166,6 +194,11 @@
     <div class="opts">
       <label><input type="checkbox" id="showNum" checked> 顯示任務編號</label>
     </div>
+    <div class="opts" role="radiogroup" aria-label="文字位置">
+      <span style="color:var(--muted)">文字位置：</span>
+      <label><input type="radio" name="mode" id="modeSide" value="side"> 右側文字欄（卡片 10.1×4.7 公分）</label>
+      <label><input type="radio" name="mode" id="modeInside" value="inside"> 插圖空白處（卡片 7×4.7 公分，字較大）</label>
+    </div>
 
     <div class="row-btns">
       <button class="primary" id="printBtn">列印</button>
@@ -182,54 +215,52 @@
 </div>
 
 <script>
-// ---------- illustration pool (coordinates in the original 1055×1491 image) ----------
+// ---------- illustration pool (coordinates in the 1055×1491 image) ----------
+// cards-clean.jpg is the original picture with only the old task text, tags and bubble text erased.
 const PICS = {
-  thanks:  { name: "說謝謝（愛心）",   crop: [20, 252, 357, 478],  text: [165, 278, 352, 372],
-             bubble: { box: [205, 388, 286, 461], bg: "#fdd3d7", heart: true } },
-  kiss:    { name: "親臉頰／抱抱",     crop: [702, 252, 1035, 478], text: [808, 282, 1030, 372], notch: [868, 346] },
-  praise:  { name: "說優點（愛心對話）", crop: [370, 490, 690, 712], text: [480, 515, 684, 612] },
-  sing:    { name: "唱歌",             crop: [20, 726, 357, 940],  text: [165, 752, 352, 842] },
-  smile:   { name: "微笑",             crop: [20, 948, 357, 1166], text: [148, 980, 350, 1062] },
-  hello:   { name: "揮手打招呼（對話框）", crop: [370, 948, 690, 1166], text: [482, 980, 684, 1060],
-             bubble: { box: [565, 1086, 658, 1160], bg: "#fdfbfb" } },
-  share:   { name: "分享聊天",         crop: [702, 948, 1035, 1166], text: [775, 980, 1032, 1062] },
-  cheer:   { name: "比讚鼓勵（對話框）", crop: [370, 1178, 690, 1396], text: [478, 1200, 684, 1277],
-             bubble: { box: [566, 1295, 673, 1363], bg: "#fbfafc" } },
+  thanks:  { name: "說謝謝（愛心）",       text: [165, 280, 352, 372], crop: [20, 252, 357, 478],   bubble: { box: [205, 388, 286, 461], heart: true } },
+  kiss:    { name: "親臉頰／抱抱",         text: [848, 284, 1030, 346], crop: [702, 252, 1035, 478] },
+  praise:  { name: "說優點（愛心對話）",   text: [480, 508, 684, 612], crop: [370, 490, 690, 712] },
+  sing:    { name: "唱歌",                 text: [165, 746, 352, 842], crop: [20, 726, 357, 940] },
+  smile:   { name: "微笑",                 text: [148, 972, 350, 1062], crop: [20, 948, 357, 1166] },
+  hello:   { name: "揮手打招呼（對話框）", text: [488, 972, 684, 1022], crop: [370, 948, 690, 1166],  bubble: { box: [565, 1086, 658, 1160] } },
+  share:   { name: "分享聊天",             text: [802, 972, 1032, 1046], crop: [702, 948, 1035, 1166] },
+  cheer:   { name: "比讚鼓勵（對話框）",   text: [516, 1192, 684, 1280], crop: [370, 1178, 690, 1396], bubble: { box: [566, 1292, 673, 1363] } },
 };
-// task tag pill, relative to the card's top-left corner
-const TAG = [12, 6, 114, 44];
+
+const TAG = [12, 6, 116, 46];   // tag pill, relative to the card corner
 
 const DEFAULT_WHO = "最愛的人";
 const DEFAULTS = [
   { pic: "thanks", text: "對最愛的人\n說謝謝",         bubble: "謝謝\n你" },
-  { pic: "kiss",   text: "親親最愛的人\n的臉頰" },
-  { pic: "praise", text: "說出最愛的人\n三個優點" },
-  { pic: "sing",   text: "唱一首歌\n給最愛的人聽" },
+  { pic: "kiss",   text: "親親\n最愛的人\n的臉頰" },
+  { pic: "praise", text: "說出\n最愛的人\n三個優點" },
+  { pic: "sing",   text: "唱一首歌給\n最愛的人聽" },
   { pic: "smile",  text: "送最愛的人\n一個微笑" },
   { pic: "hello",  text: "跟最愛的人\n揮揮手說嗨",     bubble: "嗨！" },
-  { pic: "share",  text: "跟最愛的人分享\n今天最開心的事" },
-  { pic: "cheer",  text: "對最愛的人說\n一句鼓勵的話", bubble: "你\n很棒！" },
-  { pic: "thanks", text: "對最愛的人\n說「我愛你」",   bubble: "我愛\n你" },
+  { pic: "share",  text: "跟最愛的人\n分享今天\n最開心的事" },
+  { pic: "cheer",  text: "對最愛的人\n說一句\n鼓勵的話", bubble: "你\n很棒！" },
+  { pic: "thanks", text: "對最愛的人\n說我愛你",   bubble: "我愛\n你" },
   { pic: "kiss",   text: "給最愛的人\n一個大擁抱" },
-  { pic: "praise", text: "說出最愛的人\n最喜歡吃什麼" },
-  { pic: "sing",   text: "哼一首歌\n讓最愛的人猜" },
+  { pic: "praise", text: "猜猜\n最愛的人\n最愛吃什麼" },
+  { pic: "sing",   text: "哼一首歌\n讓最愛的人\n猜歌名" },
   { pic: "smile",  text: "跟最愛的人\n比賽誰先笑" },
-  { pic: "share",  text: "跟最愛的人說\n一個開心回憶" },
+  { pic: "share",  text: "跟最愛的人\n說一個\n開心回憶" },
   { pic: "cheer",  text: "幫最愛的人\n比一個讚",       bubble: "讚！" },
-  { pic: "thanks", text: "對最愛的人\n說「辛苦了」",   bubble: "辛苦\n了" },
+  { pic: "thanks", text: "對最愛的人\n說辛苦了",   bubble: "辛苦\n了" },
   { pic: "kiss",   text: "給最愛的人\n一個飛吻" },
-  { pic: "praise", text: "說出最愛的人\n最厲害的地方" },
-  { pic: "sing",   text: "跟最愛的人\n一起唱一首歌" },
+  { pic: "praise", text: "誇誇\n最愛的人\n哪裡最厲害" },
+  { pic: "sing",   text: "跟最愛的人\n一起唱首歌" },
   { pic: "smile",  text: "對最愛的人\n眨眨眼睛" },
   { pic: "hello",  text: "跟最愛的人\n擊掌一下",       bubble: "耶！" },
-  { pic: "share",  text: "問最愛的人\n今天過得好嗎" },
-  { pic: "cheer",  text: "告訴最愛的人\n今天哪裡很棒", bubble: "好\n厲害！" },
+  { pic: "share",  text: "問最愛的人\n今天過得\n好不好" },
+  { pic: "cheer",  text: "稱讚\n最愛的人\n今天的表現", bubble: "好\n厲害！" },
   { pic: "hello",  text: "對最愛的人\n大聲說愛你",     bubble: "愛你！" },
 ];
 const COUNT = DEFAULTS.length;   // 24 cards
 const PER_PAGE = 12;             // 2 × 6 per A4
 
-const KEY = "love-task-cards-v2";
+const KEY = "love-task-cards-v3";
 let state = load();
 
 function load() {
@@ -240,7 +271,7 @@ function load() {
   return fresh();
 }
 function fresh() {
-  return { who: DEFAULT_WHO, showNum: true, tasks: DEFAULTS.map(t => ({ ...t, bubble: t.bubble || "" })) };
+  return { who: DEFAULT_WHO, showNum: true, mode: "side", tasks: DEFAULTS.map(t => ({ ...t, bubble: t.bubble || "" })) };
 }
 function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
 
@@ -252,6 +283,7 @@ const numEl = document.getElementById("showNum");
 function buildEditor() {
   whoEl.value = state.who;
   numEl.checked = state.showNum;
+  (state.mode === "inside" ? document.getElementById("modeInside") : document.getElementById("modeSide")).checked = true;
   tasksEl.innerHTML = "";
   state.tasks.forEach((t, i) => {
     const wrap = document.createElement("div");
@@ -290,6 +322,7 @@ whoEl.addEventListener("change", () => {
   renderAll();
 });
 numEl.onchange = () => { state.showNum = numEl.checked; renderAll(); };
+document.querySelectorAll('input[name=mode]').forEach(r => r.onchange = () => { state.mode = r.value; renderAll(); });
 document.getElementById("printBtn").onclick = () => window.print();
 document.getElementById("resetBtn").onclick = () => {
   if (!confirm("要把所有文字還原成預設內容嗎？")) return;
@@ -303,10 +336,10 @@ const cards = [];
 function makeCard(sheet) {
   const card = document.createElement("div");
   card.className = "card";
-  card.innerHTML = `<div class="stage"><img src="cards.jpg" alt="" draggable="false">
-    <div class="patch text"><span class="fit"></span></div>
-    <div class="patch bubble"><span class="fit"></span></div>
-    <div class="tag"><span></span></div></div>`;
+  card.innerHTML = `<div class="art"><div class="stage"><img src="cards-clean.jpg" alt="" draggable="false">
+      <div class="bubble zh"><span class="fit"></span></div>
+      <div class="in-text zh"><span class="fit"></span></div><div class="in-tag"></div></div></div>
+    <div class="side"><div class="tag"></div><div class="task-text zh"><span class="fit"></span></div></div>`;
   sheet.appendChild(card);
   return card;
 }
@@ -322,8 +355,8 @@ function fit(box, text, maxPx, minPx) {
   span.textContent = text;
   let size = maxPx;
   box.style.fontSize = size + "px";
-  while (size > minPx && (span.scrollWidth > box.clientWidth - 6 || span.offsetHeight > box.clientHeight - 4)) {
-    size -= 1;
+  while (size > minPx && (span.scrollWidth > box.clientWidth || span.offsetHeight > box.clientHeight)) {
+    size -= 0.5;
     box.style.fontSize = size + "px";
   }
 }
@@ -332,44 +365,43 @@ function update(i) {
   const t = state.tasks[i];
   const p = PICS[t.pic];
   const card = cards[i];
+  const art = card.querySelector(".art");
   const stage = card.querySelector(".stage");
   const [cx0, cy0, cx1, cy1] = p.crop;
   const cw = cx1 - cx0, ch = cy1 - cy0;
-  const W = card.clientWidth, H = card.clientHeight;
+  const W = art.clientWidth, H = art.clientHeight;
   const s = Math.max(W / cw, H / ch);
   const ox = cx0 + (cw - W / s) / 2, oy = cy0 + (ch - H / s) / 2;
   stage.style.transform = `scale(${s}) translate(${-ox}px, ${-oy}px)`;
 
-  const tp = card.querySelector(".patch.text");
-  place(tp, p.text);
-  if (p.notch) {
-    // leave the bottom-left corner uncovered so the illustration there stays visible
-    const [x0, y0, x1, y1] = p.text, nx = p.notch[0] - x0, ny = p.notch[1] - y0, w = x1 - x0, h = y1 - y0, m = 20;
-    tp.style.clipPath = `polygon(${-m}px ${-m}px, ${w + m}px ${-m}px, ${w + m}px ${h + m}px, ${nx}px ${h + m}px, ${nx}px ${ny}px, ${-m}px ${ny}px)`;
-  } else {
-    tp.style.clipPath = "";
-  }
-  fit(tp, t.text, 40, 14);
-
-  const bp = card.querySelector(".patch.bubble");
+  const bp = card.querySelector(".bubble");
   if (p.bubble) {
     bp.style.display = "";
     place(bp, p.bubble.box);
-    bp.style.setProperty("--bg", p.bubble.bg);
     bp.classList.toggle("heart", !!p.bubble.heart);
     fit(bp, t.bubble, 30, 10);
   } else {
     bp.style.display = "none";
   }
 
+  const inside = state.mode === "inside";
+  const it = card.querySelector(".in-text"), ig = card.querySelector(".in-tag");
+  place(it, p.text);
+  place(ig, [cx0 + TAG[0], cy0 + TAG[1], cx0 + TAG[2], cy0 + TAG[3]]);
+  ig.textContent = `任務 ${i + 1}`;
+  ig.hidden = !state.showNum;
+  if (inside) fit(it, t.text, 40, 12);
+
   const tag = card.querySelector(".tag");
-  place(tag, [cx0 + TAG[0], cy0 + TAG[1], cx0 + TAG[2], cy0 + TAG[3]]);
-  tag.querySelector("span").textContent = `任務 ${i + 1}`;
-  tag.classList.toggle("plain", !state.showNum);
+  tag.textContent = `任務 ${i + 1}`;
+  tag.hidden = !state.showNum;
+
+  if (!inside) fit(card.querySelector(".task-text"), t.text, 26, 8);
   save();
 }
 
-function renderAll() { state.tasks.forEach((_, i) => update(i)); }
+function renderAll() {
+  document.body.classList.toggle("inside", state.mode === "inside"); state.tasks.forEach((_, i) => update(i)); }
 
 for (let i = 0; i < COUNT; i++) cards.push(makeCard(sheets[Math.floor(i / PER_PAGE)]));
 buildEditor();
