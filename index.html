@@ -260,7 +260,7 @@ const DEFAULTS = [
 const COUNT = DEFAULTS.length;   // 24 cards
 const PER_PAGE = 12;             // 2 × 6 per A4
 
-const KEY = "love-task-cards-v3";
+const KEY = "love-task-cards-v4";
 let state = load();
 
 function load() {
@@ -271,7 +271,7 @@ function load() {
   return fresh();
 }
 function fresh() {
-  return { who: DEFAULT_WHO, showNum: true, mode: "side", tasks: DEFAULTS.map(t => ({ ...t, bubble: t.bubble || "" })) };
+  return { who: DEFAULT_WHO, showNum: true, mode: "inside", tasks: DEFAULTS.map(t => ({ ...t, bubble: t.bubble || "" })) };
 }
 function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
 
@@ -283,7 +283,7 @@ const numEl = document.getElementById("showNum");
 function buildEditor() {
   whoEl.value = state.who;
   numEl.checked = state.showNum;
-  (state.mode === "inside" ? document.getElementById("modeInside") : document.getElementById("modeSide")).checked = true;
+  (state.mode === "side" ? document.getElementById("modeSide") : document.getElementById("modeInside")).checked = true;
   tasksEl.innerHTML = "";
   state.tasks.forEach((t, i) => {
     const wrap = document.createElement("div");
@@ -384,7 +384,7 @@ function update(i) {
     bp.style.display = "none";
   }
 
-  const inside = state.mode === "inside";
+  const inside = state.mode !== "side";
   const it = card.querySelector(".in-text"), ig = card.querySelector(".in-tag");
   place(it, p.text);
   place(ig, [cx0 + TAG[0], cy0 + TAG[1], cx0 + TAG[2], cy0 + TAG[3]]);
@@ -401,7 +401,7 @@ function update(i) {
 }
 
 function renderAll() {
-  document.body.classList.toggle("inside", state.mode === "inside"); state.tasks.forEach((_, i) => update(i)); }
+  document.body.classList.toggle("inside", state.mode !== "side"); state.tasks.forEach((_, i) => update(i)); }
 
 for (let i = 0; i < COUNT; i++) cards.push(makeCard(sheets[Math.floor(i / PER_PAGE)]));
 buildEditor();
