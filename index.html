@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>愛的任務卡（注音版）</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/bpmf-huninn/index.css">
+<style>
+  :root {
+    --ink: #3a2a26;
+    --muted: #8a6f66;
+    --rose: #de5161;
+    --paper: #fffaf6;
+    --line: #ead9d1;
+    --card-w: 64mm;
+    --card-h: 42.66mm;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", sans-serif;
+    color: var(--ink);
+    background: #f4ece7;
+  }
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(320px, 440px) 1fr;
+    gap: 24px;
+    padding: 24px;
+    align-items: start;
+  }
+  @media (max-width: 1000px) { .layout { grid-template-columns: 1fr; } }
+
+  /* ---------- editor ---------- */
+  .panel {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 18px;
+    position: sticky;
+    top: 16px;
+    max-height: calc(100vh - 32px);
+    overflow: auto;
+  }
+  .panel h1 { font-size: 20px; margin: 0 0 4px; }
+  .panel p.hint { margin: 0 0 14px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+  .field { display: grid; gap: 4px; margin-bottom: 12px; }
+  .field label { font-size: 13px; color: var(--muted); }
+  input[type=text], textarea, select {
+    font: inherit; font-size: 15px; color: var(--ink);
+    border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; background: #fff;
+    width: 100%;
+  }
+  textarea { resize: vertical; min-height: 52px; line-height: 1.5; }
+  input:focus, textarea:focus, select:focus { outline: 2px solid #f3a9b2; border-color: transparent; }
+  .row-btns { display: flex; gap: 8px; flex-wrap: wrap; margin: 4px 0 16px; }
+  button {
+    font: inherit; font-size: 14px; cursor: pointer;
+    border-radius: 999px; padding: 8px 16px; border: 1px solid var(--line); background: #fff; color: var(--ink);
+  }
+  button.primary { background: var(--rose); border-color: var(--rose); color: #fff; font-weight: 600; }
+  button:hover { filter: brightness(0.97); }
+  .opts { display: flex; gap: 14px; font-size: 14px; margin-bottom: 14px; flex-wrap: wrap; }
+  .opts label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  .task {
+    border-top: 1px dashed var(--line);
+    padding: 12px 0;
+    display: grid; gap: 6px;
+  }
+  .task-head { display: flex; align-items: center; gap: 8px; }
+  .task-head b {
+    background: var(--rose); color: #fff; border-radius: 999px; font-size: 12px; padding: 2px 9px; flex: none;
+  }
+  .task-head select { flex: 1; font-size: 14px; padding: 5px 8px; }
+  .task .bubble-in { font-size: 14px; }
+  .task .bubble-in::placeholder { color: #c4b0a8; }
+
+  /* ---------- sheet ---------- */
+  .sheet-wrap { overflow: auto; }
+  .sheet {
+    width: 210mm; min-height: 297mm;
+    background: #fff;
+    margin: 0 auto;
+    padding: 12mm 9mm;
+    box-shadow: 0 2px 18px rgba(80, 40, 30, .12);
+    display: grid;
+    grid-template-columns: repeat(3, var(--card-w));
+    grid-auto-rows: var(--card-h);
+    justify-content: center;
+    align-content: start;
+    gap: 0;
+  }
+  .card {
+    position: relative;
+    overflow: hidden;
+    width: var(--card-w); height: var(--card-h);
+    outline: 0.25mm dashed #b9aaa4;
+    outline-offset: -0.125mm;
+    background: #fef9f5;
+  }
+  .stage {
+    position: absolute; left: 0; top: 0;
+    width: 1055px; height: 1491px;
+    transform-origin: 0 0;
+  }
+  .stage img { position: absolute; left: 0; top: 0; width: 1055px; height: 1491px; display: block; user-select: none; }
+  .patch {
+    position: absolute;
+    background: #fef9f5;
+    border-radius: 14px;
+    box-shadow: 0 0 6px 5px #fef9f5;
+    display: flex; align-items: center; justify-content: center;
+    text-align: center;
+    white-space: pre-wrap;
+    font-family: "Bpmf Huninn", "Microsoft JhengHei", sans-serif;
+    color: #2b201d;
+    line-height: 1.22;
+    letter-spacing: 1px;
+    overflow: hidden;
+  }
+  .patch .fit { display: block; }
+  .patch.bubble { border-radius: 50%; box-shadow: 0 0 4px 3px var(--bg); background: var(--bg); }
+  .patch.heart { color: #c2384f; }
+  .tag {
+    position: absolute;
+    background: #de5161;
+    color: #fff;
+    border-radius: 999px;
+    box-shadow: 0 0 0 3px #fef9f5;
+    display: flex; align-items: center; justify-content: center;
+    font-family: "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", sans-serif;
+    font-weight: 700; font-size: 21px; letter-spacing: 1px;
+    white-space: nowrap;
+  }
+  .tag.plain { background: #fef9f5; box-shadow: 0 0 6px 4px #fef9f5; }
+  .tag.plain span { display: none; }
+
+  @media print {
+    @page { size: A4 portrait; margin: 0; }
+    body { background: #fff; }
+    .layout { display: block; padding: 0; }
+    .panel { display: none; }
+    .sheet { box-shadow: none; margin: 0; min-height: 0; }
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside class="panel">
+    <h1>愛的任務卡</h1>
+    <p class="hint">在餐廳就能當場完成的 15 個小任務。改左邊的文字，右邊的卡片會跟著更新，注音會自動加上。按「列印」可以印成 A4，沿虛線剪成 15 張小卡。</p>
+
+    <div class="field">
+      <label for="who">稱呼（會替換所有卡片裡的稱呼）</label>
+      <input type="text" id="who" value="最愛的人" maxlength="8">
+    </div>
+
+    <div class="opts">
+      <label><input type="checkbox" id="showNum" checked> 顯示任務編號</label>
+    </div>
+
+    <div class="row-btns">
+      <button class="primary" id="printBtn">列印</button>
+      <button id="resetBtn">還原預設</button>
+    </div>
+
+    <div id="tasks"></div>
+  </aside>
+
+  <main class="sheet-wrap">
+    <div class="sheet" id="sheet"></div>
+  </main>
+</div>
+
+<script>
+// ---------- illustration pool (coordinates in the original 1055×1491 image) ----------
+const PICS = {
+  thanks:  { name: "說謝謝（愛心）",   crop: [20, 252, 357, 478],  text: [165, 278, 352, 372],
+             bubble: { box: [205, 388, 286, 461], bg: "#fdd3d7", heart: true } },
+  kiss:    { name: "親臉頰／抱抱",     crop: [702, 252, 1035, 478], text: [808, 282, 1030, 372], notch: [868, 346] },
+  praise:  { name: "說優點（愛心對話）", crop: [370, 490, 690, 712], text: [480, 515, 684, 612] },
+  sing:    { name: "唱歌",             crop: [20, 726, 357, 940],  text: [165, 752, 352, 842] },
+  smile:   { name: "微笑",             crop: [20, 948, 357, 1166], text: [148, 980, 350, 1062] },
+  hello:   { name: "揮手打招呼（對話框）", crop: [370, 948, 690, 1166], text: [482, 980, 684, 1060],
+             bubble: { box: [565, 1086, 658, 1160], bg: "#fdfbfb" } },
+  share:   { name: "分享聊天",         crop: [702, 948, 1035, 1166], text: [775, 980, 1032, 1062] },
+  cheer:   { name: "比讚鼓勵（對話框）", crop: [370, 1178, 690, 1396], text: [478, 1200, 684, 1277],
+             bubble: { box: [566, 1295, 673, 1363], bg: "#fbfafc" } },
+};
+// task tag pill, relative to the card's top-left corner
+const TAG = [12, 6, 114, 44];
+
+const DEFAULT_WHO = "最愛的人";
+const DEFAULTS = [
+  { pic: "thanks", text: "對最愛的人\n說謝謝",         bubble: "謝謝\n你" },
+  { pic: "kiss",   text: "親親最愛的人\n的臉頰" },
+  { pic: "praise", text: "說出最愛的人\n三個優點" },
+  { pic: "sing",   text: "唱一首歌\n給最愛的人聽" },
+  { pic: "smile",  text: "送最愛的人\n一個微笑" },
+  { pic: "hello",  text: "跟最愛的人\n揮揮手說嗨",     bubble: "嗨！" },
+  { pic: "share",  text: "跟最愛的人分享\n今天最開心的事" },
+  { pic: "cheer",  text: "對最愛的人說\n一句鼓勵的話", bubble: "你\n很棒！" },
+  { pic: "thanks", text: "對最愛的人\n說「我愛你」",   bubble: "我愛\n你" },
+  { pic: "kiss",   text: "給最愛的人\n一個大擁抱" },
+  { pic: "praise", text: "說出最愛的人\n最喜歡吃什麼" },
+  { pic: "sing",   text: "哼一首歌\n讓最愛的人猜" },
+  { pic: "smile",  text: "跟最愛的人\n比賽誰先笑" },
+  { pic: "share",  text: "跟最愛的人說\n一個開心回憶" },
+  { pic: "cheer",  text: "幫最愛的人\n比一個讚",       bubble: "讚！" },
+];
+
+const KEY = "love-task-cards-v1";
+let state = load();
+
+function load() {
+  try {
+    const s = JSON.parse(localStorage.getItem(KEY));
+    if (s && Array.isArray(s.tasks) && s.tasks.length === 15) return s;
+  } catch (e) {}
+  return fresh();
+}
+function fresh() {
+  return { who: DEFAULT_WHO, showNum: true, tasks: DEFAULTS.map(t => ({ ...t, bubble: t.bubble || "" })) };
+}
+function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+
+// ---------- editor ----------
+const tasksEl = document.getElementById("tasks");
+const whoEl = document.getElementById("who");
+const numEl = document.getElementById("showNum");
+
+function buildEditor() {
+  whoEl.value = state.who;
+  numEl.checked = state.showNum;
+  tasksEl.innerHTML = "";
+  state.tasks.forEach((t, i) => {
+    const wrap = document.createElement("div");
+    wrap.className = "task";
+    const opts = Object.entries(PICS).map(([k, p]) =>
+      `<option value="${k}"${k === t.pic ? " selected" : ""}>${p.name}</option>`).join("");
+    wrap.innerHTML = `
+      <div class="task-head"><b>任務 ${i + 1}</b><select aria-label="任務 ${i + 1} 的插圖">${opts}</select></div>
+      <textarea rows="2" aria-label="任務 ${i + 1} 的文字"></textarea>
+      <input type="text" class="bubble-in" placeholder="對話框裡的字（可留空）" aria-label="任務 ${i + 1} 對話框文字">`;
+    const sel = wrap.querySelector("select");
+    const ta = wrap.querySelector("textarea");
+    const bi = wrap.querySelector(".bubble-in");
+    ta.value = t.text;
+    bi.value = t.bubble.replace(/\n/g, "/");
+    bi.style.display = PICS[t.pic].bubble ? "" : "none";
+    sel.onchange = () => { t.pic = sel.value; bi.style.display = PICS[t.pic].bubble ? "" : "none"; update(i); };
+    ta.oninput = () => { t.text = ta.value; update(i); };
+    bi.oninput = () => { t.bubble = bi.value.replace(/\//g, "\n"); update(i); };
+    tasksEl.appendChild(wrap);
+  });
+}
+
+whoEl.addEventListener("change", () => {
+  const next = whoEl.value.trim();
+  const prev = state.who;
+  if (!next) { whoEl.value = prev; return; }
+  if (prev && next !== prev) {
+    state.tasks.forEach(t => {
+      t.text = t.text.split(prev).join(next);
+      t.bubble = t.bubble.split(prev).join(next);
+    });
+  }
+  state.who = next;
+  buildEditor();
+  renderAll();
+});
+numEl.onchange = () => { state.showNum = numEl.checked; renderAll(); };
+document.getElementById("printBtn").onclick = () => window.print();
+document.getElementById("resetBtn").onclick = () => {
+  if (!confirm("要把所有文字還原成預設內容嗎？")) return;
+  state = fresh(); buildEditor(); renderAll();
+};
+
+// ---------- cards ----------
+const sheet = document.getElementById("sheet");
+const cards = [];
+
+function makeCard() {
+  const card = document.createElement("div");
+  card.className = "card";
+  card.innerHTML = `<div class="stage"><img src="cards.jpg" alt="" draggable="false">
+    <div class="patch text"><span class="fit"></span></div>
+    <div class="patch bubble"><span class="fit"></span></div>
+    <div class="tag"><span></span></div></div>`;
+  sheet.appendChild(card);
+  return card;
+}
+
+function place(el, [x0, y0, x1, y1]) {
+  el.style.left = x0 + "px"; el.style.top = y0 + "px";
+  el.style.width = (x1 - x0) + "px"; el.style.height = (y1 - y0) + "px";
+}
+
+// shrink font until text fits its box
+function fit(box, text, maxPx, minPx) {
+  const span = box.querySelector(".fit");
+  span.textContent = text;
+  let size = maxPx;
+  box.style.fontSize = size + "px";
+  while (size > minPx && (span.scrollWidth > box.clientWidth - 6 || span.offsetHeight > box.clientHeight - 4)) {
+    size -= 1;
+    box.style.fontSize = size + "px";
+  }
+}
+
+function update(i) {
+  const t = state.tasks[i];
+  const p = PICS[t.pic];
+  const card = cards[i];
+  const stage = card.querySelector(".stage");
+  const [cx0, cy0, cx1, cy1] = p.crop;
+  const cw = cx1 - cx0, ch = cy1 - cy0;
+  const W = card.clientWidth, H = card.clientHeight;
+  const s = Math.max(W / cw, H / ch);
+  const ox = cx0 + (cw - W / s) / 2, oy = cy0 + (ch - H / s) / 2;
+  stage.style.transform = `scale(${s}) translate(${-ox}px, ${-oy}px)`;
+
+  const tp = card.querySelector(".patch.text");
+  place(tp, p.text);
+  if (p.notch) {
+    // leave the bottom-left corner uncovered so the illustration there stays visible
+    const [x0, y0, x1, y1] = p.text, nx = p.notch[0] - x0, ny = p.notch[1] - y0, w = x1 - x0, h = y1 - y0, m = 20;
+    tp.style.clipPath = `polygon(${-m}px ${-m}px, ${w + m}px ${-m}px, ${w + m}px ${h + m}px, ${nx}px ${h + m}px, ${nx}px ${ny}px, ${-m}px ${ny}px)`;
+  } else {
+    tp.style.clipPath = "";
+  }
+  fit(tp, t.text, 40, 14);
+
+  const bp = card.querySelector(".patch.bubble");
+  if (p.bubble) {
+    bp.style.display = "";
+    place(bp, p.bubble.box);
+    bp.style.setProperty("--bg", p.bubble.bg);
+    bp.classList.toggle("heart", !!p.bubble.heart);
+    fit(bp, t.bubble, 30, 10);
+  } else {
+    bp.style.display = "none";
+  }
+
+  const tag = card.querySelector(".tag");
+  place(tag, [cx0 + TAG[0], cy0 + TAG[1], cx0 + TAG[2], cy0 + TAG[3]]);
+  tag.querySelector("span").textContent = `任務 ${i + 1}`;
+  tag.classList.toggle("plain", !state.showNum);
+  save();
+}
+
+function renderAll() { state.tasks.forEach((_, i) => update(i)); }
+
+for (let i = 0; i < 15; i++) cards.push(makeCard());
+buildEditor();
+renderAll();
+document.fonts.ready.then(renderAll);
+// fonts are split by character, so re-fit once more after late subsets arrive
+document.fonts.addEventListener && document.fonts.addEventListener("loadingdone", renderAll);
+</script>
+</body>
+</html>
