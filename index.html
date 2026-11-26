@@ -12,8 +12,8 @@
     --rose: #de5161;
     --paper: #fffaf6;
     --line: #ead9d1;
-    --card-w: 64mm;
-    --card-h: 42.66mm;
+    --card-w: 70mm;
+    --card-h: 46.66mm;
   }
   * { box-sizing: border-box; }
   body {
@@ -29,7 +29,11 @@
     padding: 24px;
     align-items: start;
   }
-  @media (max-width: 1000px) { .layout { grid-template-columns: 1fr; } }
+  @media (max-width: 1000px) {
+    .layout { grid-template-columns: 1fr; }
+    /* stacked layout: the editor scrolls away normally so it never covers the cards */
+    .layout .panel { position: static; max-height: none; }
+  }
 
   /* ---------- editor ---------- */
   .panel {
@@ -76,19 +80,20 @@
   .task .bubble-in::placeholder { color: #c4b0a8; }
 
   /* ---------- sheet ---------- */
-  .sheet-wrap { overflow: auto; }
+  .sheet-wrap { overflow: auto; display: grid; gap: 24px; }
+  /* one A4 page = 2 columns × 6 rows */
   .sheet {
-    width: 210mm; min-height: 297mm;
+    width: 210mm; height: 297mm;
     background: #fff;
     margin: 0 auto;
-    padding: 12mm 9mm;
     box-shadow: 0 2px 18px rgba(80, 40, 30, .12);
     display: grid;
-    grid-template-columns: repeat(3, var(--card-w));
-    grid-auto-rows: var(--card-h);
+    grid-template-columns: repeat(2, var(--card-w));
+    grid-template-rows: repeat(6, var(--card-h));
     justify-content: center;
-    align-content: start;
+    align-content: center;
     gap: 0;
+    overflow: hidden;
   }
   .card {
     position: relative;
@@ -140,7 +145,9 @@
     body { background: #fff; }
     .layout { display: block; padding: 0; }
     .panel { display: none; }
-    .sheet { box-shadow: none; margin: 0; min-height: 0; }
+    .sheet-wrap { display: block; overflow: visible; }
+    .sheet { box-shadow: none; margin: 0; break-after: page; page-break-after: always; }
+    .sheet:last-child { break-after: auto; page-break-after: auto; }
     * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   }
 </style>
@@ -149,7 +156,7 @@
 <div class="layout">
   <aside class="panel">
     <h1>愛的任務卡</h1>
-    <p class="hint">在餐廳就能當場完成的 15 個小任務。改左邊的文字，右邊的卡片會跟著更新，注音會自動加上。按「列印」可以印成 A4，沿虛線剪成 15 張小卡。</p>
+    <p class="hint">在餐廳就能當場完成的 24 個小任務。改這裡的文字，卡片會跟著更新，注音會自動加上。按「列印」會印成 2 張 A4（每張 2×6），沿虛線剪成 24 張小卡。</p>
 
     <div class="field">
       <label for="who">稱呼（會替換所有卡片裡的稱呼）</label>
@@ -169,7 +176,8 @@
   </aside>
 
   <main class="sheet-wrap">
-    <div class="sheet" id="sheet"></div>
+    <div class="sheet"></div>
+    <div class="sheet"></div>
   </main>
 </div>
 
@@ -208,15 +216,26 @@ const DEFAULTS = [
   { pic: "smile",  text: "跟最愛的人\n比賽誰先笑" },
   { pic: "share",  text: "跟最愛的人說\n一個開心回憶" },
   { pic: "cheer",  text: "幫最愛的人\n比一個讚",       bubble: "讚！" },
+  { pic: "thanks", text: "對最愛的人\n說「辛苦了」",   bubble: "辛苦\n了" },
+  { pic: "kiss",   text: "給最愛的人\n一個飛吻" },
+  { pic: "praise", text: "說出最愛的人\n最厲害的地方" },
+  { pic: "sing",   text: "跟最愛的人\n一起唱一首歌" },
+  { pic: "smile",  text: "對最愛的人\n眨眨眼睛" },
+  { pic: "hello",  text: "跟最愛的人\n擊掌一下",       bubble: "耶！" },
+  { pic: "share",  text: "問最愛的人\n今天過得好嗎" },
+  { pic: "cheer",  text: "告訴最愛的人\n今天哪裡很棒", bubble: "好\n厲害！" },
+  { pic: "hello",  text: "對最愛的人\n大聲說愛你",     bubble: "愛你！" },
 ];
+const COUNT = DEFAULTS.length;   // 24 cards
+const PER_PAGE = 12;             // 2 × 6 per A4
 
-const KEY = "love-task-cards-v1";
+const KEY = "love-task-cards-v2";
 let state = load();
 
 function load() {
   try {
     const s = JSON.parse(localStorage.getItem(KEY));
-    if (s && Array.isArray(s.tasks) && s.tasks.length === 15) return s;
+    if (s && Array.isArray(s.tasks) && s.tasks.length === COUNT) return s;
   } catch (e) {}
   return fresh();
 }
@@ -278,10 +297,10 @@ document.getElementById("resetBtn").onclick = () => {
 };
 
 // ---------- cards ----------
-const sheet = document.getElementById("sheet");
+const sheets = document.querySelectorAll(".sheet");
 const cards = [];
 
-function makeCard() {
+function makeCard(sheet) {
   const card = document.createElement("div");
   card.className = "card";
   card.innerHTML = `<div class="stage"><img src="cards.jpg" alt="" draggable="false">
@@ -352,7 +371,7 @@ function update(i) {
 
 function renderAll() { state.tasks.forEach((_, i) => update(i)); }
 
-for (let i = 0; i < 15; i++) cards.push(makeCard());
+for (let i = 0; i < COUNT; i++) cards.push(makeCard(sheets[Math.floor(i / PER_PAGE)]));
 buildEditor();
 renderAll();
 document.fonts.ready.then(renderAll);
